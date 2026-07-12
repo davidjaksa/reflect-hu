@@ -49,8 +49,33 @@ export function ArchiveApp() {
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [uploadName, setUploadName] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+
+  async function startUpload() {
+    if (!selectedFiles.length) return
+    setUploading(true)
+    setUploadError('')
+
+    try {
+      for (let index = 0; index < selectedFiles.length; index += 1) {
+        const file = selectedFiles[index]
+        await uploadFile(file, (fileProgress) => {
+          setUploadProgress(Math.round(((index + fileProgress / 100) / selectedFiles.length) * 100))
+        })
+      }
+      setSelectedFiles([])
+      setUploadOpen(false)
+      setUploadProgress(0)
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'A feltöltés sikertelen.')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const filteredAlbums = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('hu')
@@ -163,9 +188,11 @@ export function ArchiveApp() {
                 <span className="font-medium">Húzd ide a fájlokat, vagy válaszd ki őket</span>
                 <span className="text-sm text-muted-foreground">A feltöltés megszakítás után folytatható lesz.</span>
               </button>
-              <input ref={fileRef} className="sr-only" type="file" multiple accept="image/*,video/*,.dng,.cr2,.cr3,.nef,.arw" onChange={(event) => setUploadName(event.target.files?.[0]?.name ?? '')} />
-              {uploadName && <div className="flex items-center gap-2 rounded-lg bg-secondary p-3 text-sm"><Check className="size-4" />{uploadName} előkészítve</div>}
-              <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setUploadOpen(false)}>Mégse</Button><Button disabled={!uploadName} onClick={() => setUploadOpen(false)}>Feltöltés indítása</Button></div>
+              <input ref={fileRef} className="sr-only" type="file" multiple accept="image/*,video/*,.dng,.cr2,.cr3,.nef,.arw" onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))} />
+              {selectedFiles.length > 0 && <div className="flex items-center gap-2 rounded-lg bg-secondary p-3 text-sm"><Check className="size-4" />{selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} fájl`} előkészítve</div>}
+              {uploading && <div className="flex flex-col gap-2"><div className="flex justify-between text-sm"><span>Feltöltés a Storage Boxra</span><span>{uploadProgress}%</span></div><Progress value={uploadProgress} /></div>}
+              {uploadError && <p className="text-sm text-destructive" role="alert">{uploadError}</p>}
+              <div className="flex justify-end gap-2"><Button variant="outline" disabled={uploading} onClick={() => setUploadOpen(false)}>Mégse</Button><Button disabled={!selectedFiles.length || uploading} onClick={startUpload}>{uploading ? 'Feltöltés…' : 'Feltöltés indítása'}</Button></div>
             </CardContent>
           </Card>
         </div>
@@ -193,7 +220,7 @@ function Dashboard({ filteredAlbums, query, onOpenArchive }: { filteredAlbums: t
     </section>
 
     <section className="flex flex-col gap-4">
-      <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Legutóbbi munkák</p><h2 className="mt-1 font-serif text-3xl">Albumok és projektek</h2></div><Button variant="ghost" onClick={onOpenArchive}>Összes megtekintése <ChevronRight data-icon="inline-end" /></Button></div>
+      <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Legutóbbi munk��k</p><h2 className="mt-1 font-serif text-3xl">Albumok és projektek</h2></div><Button variant="ghost" onClick={onOpenArchive}>Összes megtekintése <ChevronRight data-icon="inline-end" /></Button></div>
       {query && <p className="text-sm text-muted-foreground">Találatok erre: „{query}” · {filteredAlbums.length} album</p>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredAlbums.map((album) => <AlbumCard key={album.id} album={album} />)}
