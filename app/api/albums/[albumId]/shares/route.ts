@@ -6,6 +6,34 @@ import { z } from 'zod'
 import { query } from '@/lib/db'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+/** GET — list all share links for an album */
+export async function GET(_req: Request, context: { params: Promise<{ albumId: string }> }) {
+  const { albumId } = await context.params
+
+  const result = await query<{
+    id: string
+    token_preview: string
+    allow_download: boolean
+    password_protected: boolean
+    expires_at: string | null
+    created_at: string
+  }>(
+    `SELECT id,
+            left(encode(token_hash::bytea, 'hex'), 8) AS token_preview,
+            allow_download,
+            (password_hash IS NOT NULL) AS password_protected,
+            expires_at,
+            created_at
+     FROM share_links
+     WHERE album_id = $1
+     ORDER BY created_at DESC`,
+    [albumId],
+  )
+
+  return NextResponse.json({ shares: result.rows })
+}
 
 const schema = z.object({
   password: z.string().min(6).max(128).optional(),
@@ -13,12 +41,8 @@ const schema = z.object({
   expiresAt: z.string().datetime().optional(),
 })
 
+/** POST — create a new share link */
 export async function POST(request: Request, context: { params: Promise<{ albumId: string }> }) {
-  const adminKey = process.env.ADMIN_API_KEY
-  if (!adminKey || request.headers.get('authorization') !== `Bearer ${adminKey}`) {
-    return NextResponse.json({ error: 'Nincs jogosultság.' }, { status: 401 })
-  }
-
   const parsed = schema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'Hibás megosztási beállítások.' }, { status: 400 })
 
@@ -33,5 +57,6 @@ export async function POST(request: Request, context: { params: Promise<{ albumI
     [albumId, tokenHash, passwordHash, parsed.data.allowDownload, parsed.data.expiresAt ?? null],
   )
 
-  return NextResponse.json({ url: `/g/${token}` }, { status: 201 })
+  const origin = (request.headers.get('origin') ?? '').replace(/\/$/, '')
+  return NextResponse.json({ token, url: `${origin}/g/${token}` }, { status: 201 })
 }

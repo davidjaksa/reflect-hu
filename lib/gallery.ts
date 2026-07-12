@@ -7,7 +7,7 @@ export type SharedGallery = {
   description: string | null
   allowDownload: boolean
   passwordProtected: boolean
-  assets: Array<{ id: string; name: string; mediaType: string }>
+  assets: Array<{ id: string; name: string; mediaType: string; previewKey: string | null }>
 }
 
 export async function getSharedGallery(token: string): Promise<SharedGallery | null> {
@@ -23,8 +23,12 @@ export async function getSharedGallery(token: string): Promise<SharedGallery | n
       WHERE s.token_hash = $1 AND (s.expires_at IS NULL OR s.expires_at > now())`, [tokenHash])
   if (!share.rows[0]) return null
 
-  const assets = await query<{ id: string; original_name: string; media_type: string }>(
-    `SELECT id, original_name, media_type FROM assets WHERE album_id = $1 AND status = 'ready' ORDER BY captured_at NULLS LAST, created_at`,
+  const assets = await query<{ id: string; original_name: string; media_type: string; preview_key: string | null }>(
+    `SELECT a.id, a.original_name, a.media_type, af.storage_key AS preview_key
+     FROM assets a
+     LEFT JOIN asset_files af ON af.asset_id = a.id AND af.variant = 'preview'
+     WHERE a.album_id = $1 AND a.status = 'ready'
+     ORDER BY a.captured_at NULLS LAST, a.created_at`,
     [share.rows[0].album_id],
   )
 
@@ -33,7 +37,12 @@ export async function getSharedGallery(token: string): Promise<SharedGallery | n
     description: share.rows[0].description,
     allowDownload: share.rows[0].allow_download,
     passwordProtected: Boolean(share.rows[0].password_hash),
-    assets: assets.rows.map((asset) => ({ id: asset.id, name: asset.original_name, mediaType: asset.media_type })),
+    assets: assets.rows.map((asset) => ({
+      id: asset.id,
+      name: asset.original_name,
+      mediaType: asset.media_type,
+      previewKey: asset.preview_key ?? null,
+    })),
   }
 }
 

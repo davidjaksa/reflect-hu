@@ -16,3 +16,11 @@ export function validShareSession(token: string, value?: string) {
   const received = Buffer.from(value)
   return expected.length === received.length && timingSafeEqual(expected, received)
 }
+
+/** Parse cookie header and verify the share session for the given token. */
+export function verifyShareSession(token: string, cookieHeader: string | null): boolean {
+  if (!cookieHeader) return false
+  const cookieName = `lumen_share_${token.slice(0, 12)}`
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`))
+  return validShareSession(token, match?.[1])
+}

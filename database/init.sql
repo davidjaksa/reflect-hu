@@ -9,6 +9,40 @@ CREATE TABLE users (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token text UNIQUE NOT NULL,
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX sessions_token_idx ON sessions(token);
+CREATE INDEX sessions_user_idx ON sessions(user_id);
+
+CREATE TABLE portfolio_collections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug text UNIQUE NOT NULL,
+  title text NOT NULL,
+  description text,
+  cover_asset_id uuid,
+  sort_order int NOT NULL DEFAULT 0,
+  published bool NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE portfolio_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id uuid NOT NULL REFERENCES portfolio_collections(id) ON DELETE CASCADE,
+  asset_id uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  sort_order int NOT NULL DEFAULT 0,
+  alt_text text,
+  caption text,
+  UNIQUE (collection_id, asset_id)
+);
+
+CREATE INDEX portfolio_items_collection_idx ON portfolio_items(collection_id);
+
 CREATE TABLE clients (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid UNIQUE REFERENCES users(id) ON DELETE SET NULL,

@@ -21,9 +21,13 @@ const metadataSchema = z.object({
 })
 
 export async function POST(request: Request) {
+  // Accept either a bearer API key (Lightroom plugin) or rely on the session
+  // cookie that was already verified by middleware for web UI uploads.
   const authorization = request.headers.get('authorization')
-  if (authorization && authorization !== `Bearer ${process.env.ADMIN_API_KEY}`) {
-    return NextResponse.json({ error: 'Érvénytelen API-kulcs.' }, { status: 401 })
+  if (authorization) {
+    if (!process.env.ADMIN_API_KEY || authorization !== `Bearer ${process.env.ADMIN_API_KEY}`) {
+      return NextResponse.json({ error: 'Érvénytelen API-kulcs.' }, { status: 401 })
+    }
   }
 
   const parsed = metadataSchema.safeParse({
