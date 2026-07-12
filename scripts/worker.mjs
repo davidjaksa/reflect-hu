@@ -5,7 +5,8 @@ import pg from 'pg'
 import SftpClient from 'ssh2-sftp-client'
 import sharp from 'sharp'
 import * as exifr from 'exifr'
-import { imageEmbedding, pgVector } from '../lib/clip.mjs'
+// clip.mjs is imported lazily inside the ai_index job handler to avoid
+// loading onnxruntime-node at startup on systems where glibc is missing.
 
 const { Pool } = pg
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 })
@@ -109,6 +110,7 @@ async function processJob(job) {
 
     if (job.type === 'ai_index') {
       if (job.media_type !== 'video') {
+        const { imageEmbedding, pgVector } = await import('../lib/clip.mjs')
         const embedding = await imageEmbedding(originalPath)
         await pool.query(
           `INSERT INTO embeddings (asset_id, model, model_version, embedding)
