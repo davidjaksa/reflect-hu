@@ -34,6 +34,12 @@ export function middleware(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next())
   }
 
+  // In development, skip auth so the UI is browsable without a database.
+  // In production this block is never reached.
+  if (process.env.NODE_ENV === 'development') {
+    return addSecurityHeaders(NextResponse.next())
+  }
+
   // For everything else, check session cookie presence (lightweight — no DB)
   const cookieHeader = request.headers.get('cookie')
   const token = getSessionTokenFromCookie(cookieHeader)
