@@ -410,7 +410,7 @@ function DashboardView({ searchQuery, onOpenArchive }: { searchQuery: string; on
     <>
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary" suppressHydrationWarning>
             {new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
           </p>
           <h1 className="font-serif text-4xl tracking-tight md:text-5xl">Jó napot, Admin.</h1>
