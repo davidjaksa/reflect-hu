@@ -21,8 +21,13 @@ const metadataSchema = z.object({
 })
 
 export async function POST(request: Request) {
+  const authorization = request.headers.get('authorization')
+  if (authorization && authorization !== `Bearer ${process.env.ADMIN_API_KEY}`) {
+    return NextResponse.json({ error: 'Érvénytelen API-kulcs.' }, { status: 401 })
+  }
+
   const parsed = metadataSchema.safeParse({
-    filename: request.headers.get('x-file-name'),
+    filename: decodeURIComponent(request.headers.get('x-file-name') ?? ''),
     contentType: request.headers.get('content-type'),
     albumId: request.headers.get('x-album-id') || undefined,
   })

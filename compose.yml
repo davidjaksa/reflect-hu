@@ -22,7 +22,9 @@ services:
       retries: 3
 
   worker:
-    build: .
+    build:
+      context: .
+      target: worker
     command: node scripts/worker.mjs
     restart: unless-stopped
     environment:

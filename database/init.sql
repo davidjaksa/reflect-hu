@@ -62,11 +62,32 @@ CREATE TABLE embeddings (
   asset_id uuid PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE,
   model text NOT NULL,
   model_version text NOT NULL,
-  embedding vector(768) NOT NULL,
+  embedding vector(512) NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX embeddings_cosine_idx ON embeddings USING hnsw (embedding vector_cosine_ops);
+
+CREATE TABLE people (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text,
+  cover_asset_id uuid REFERENCES assets(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE faces (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  asset_id uuid NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  person_id uuid REFERENCES people(id) ON DELETE SET NULL,
+  box jsonb NOT NULL,
+  embedding vector(512),
+  confidence real NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX faces_asset_idx ON faces(asset_id);
+CREATE INDEX faces_person_idx ON faces(person_id);
+CREATE INDEX faces_embedding_idx ON faces USING hnsw (embedding vector_cosine_ops);
 
 CREATE TABLE share_links (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

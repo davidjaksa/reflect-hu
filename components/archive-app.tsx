@@ -36,6 +36,32 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+function uploadFile(file: File, onProgress: (progress: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open('POST', '/api/uploads')
+    request.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+    request.setRequestHeader('X-File-Name', encodeURIComponent(file.name))
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress((event.loaded / event.total) * 100)
+    })
+    request.addEventListener('load', () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress(100)
+        resolve()
+        return
+      }
+      try {
+        reject(new Error(JSON.parse(request.responseText).error || 'A feltöltés sikertelen.'))
+      } catch {
+        reject(new Error('A feltöltés sikertelen.'))
+      }
+    })
+    request.addEventListener('error', () => reject(new Error('Hálózati hiba történt a feltöltés közben.')))
+    request.send(file)
+  })
+}
+
 const navItems = [
   { label: 'Áttekintő', icon: LayoutDashboard },
   { label: 'Archívum', icon: Archive },
