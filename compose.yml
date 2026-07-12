@@ -1,0 +1,63 @@
+services:
+  web:
+    build: .
+    command: node server.js
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lumen}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-sftp}
+      STORAGE_HOST: ${STORAGE_HOST}
+      STORAGE_PORT: ${STORAGE_PORT:-23}
+      STORAGE_USER: ${STORAGE_USER}
+      STORAGE_PASSWORD: ${STORAGE_PASSWORD}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build: .
+    command: node scripts/worker.mjs
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lumen}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-sftp}
+      STORAGE_HOST: ${STORAGE_HOST}
+      STORAGE_PORT: ${STORAGE_PORT:-23}
+      STORAGE_USER: ${STORAGE_USER}
+      STORAGE_PASSWORD: ${STORAGE_PASSWORD}
+      SCRATCH_DIR: /scratch
+    volumes:
+      - worker-scratch:/scratch
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["production"]
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lumen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-lumen}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lumen} -d ${POSTGRES_DB:-lumen}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+
+volumes:
+  postgres-data:
+  worker-scratch:
