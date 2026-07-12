@@ -25,8 +25,12 @@ export function middleware(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next())
   }
 
-  // Allow login API
-  if (pathname === '/api/auth/login' || pathname === '/api/auth/logout') {
+  // Allow login API (admin + client)
+  if (
+    pathname === '/api/auth/login' ||
+    pathname === '/api/auth/logout' ||
+    pathname === '/api/auth/client-login'
+  ) {
     return addSecurityHeaders(NextResponse.next())
   }
 

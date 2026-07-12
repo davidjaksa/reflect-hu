@@ -1,7 +1,9 @@
+import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { createSession, verifyPassword } from '@/lib/auth'
+import { clearRateLimit, isRateLimited } from '@/lib/rate-limit'
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -9,6 +11,15 @@ const bodySchema = z.object({
 })
 
 export async function POST(request: Request) {
+  const headerStore = await headers()
+  const ip = headerStore.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: 'Túl sok sikertelen bejelentkezési kísérlet. Próbáld újra 15 perc múlva.' },
+      { status: 429 },
+    )
+  }
+
   let body: unknown
   try {
     body = await request.json()
@@ -31,6 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Hozzáférés megtagadva.' }, { status: 403 })
   }
 
+  clearRateLimit(ip)
   await createSession(user)
   return NextResponse.json({ ok: true })
 }

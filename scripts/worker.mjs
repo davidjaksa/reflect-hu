@@ -83,13 +83,44 @@ async function processJob(job) {
       [job.asset_id, previewKey, info.width, info.height, preview.byteLength])
     }
 
+    if (job.type === 'generate_thumbnail' && job.media_type !== 'video') {
+      const thumb = await sharp(originalPath)
+        .rotate()
+        .resize({ width: 400, height: 400, fit: 'cover' })
+        .webp({ quality: 78 })
+        .toBuffer()
+      const thumbKey = `previews/${job.asset_id}/thumb.webp`
+      const thumbPath = path.join(workDir, 'thumb.webp')
+      await writeFile(thumbPath, thumb)
+      const info = await sharp(thumb).metadata()
+      await withStorage(async (storage) => {
+        await storage.mkdir(path.posix.dirname(`/${thumbKey}`), true)
+        await storage.fastPut(thumbPath, `/${thumbKey}`)
+      })
+      await pool.query(
+        `INSERT INTO asset_files (asset_id, variant, storage_key, mime_type, width, height, byte_size)
+         VALUES ($1, 'thumbnail', $2, 'image/webp', $3, $4, $5)
+         ON CONFLICT (asset_id, variant) DO UPDATE
+           SET storage_key = EXCLUDED.storage_key, width = EXCLUDED.width,
+               height = EXCLUDED.height, byte_size = EXCLUDED.byte_size`,
+        [job.asset_id, thumbKey, info.width, info.height, thumb.byteLength],
+      )
+    }
+
     if (job.type === 'ai_index') {
       if (job.media_type !== 'video') {
         const embedding = await imageEmbedding(originalPath)
-        await pool.query(`INSERT INTO embeddings (asset_id, model, model_version, embedding)
-          VALUES ($1, $2, '1', $3::vector)
-          ON CONFLICT (asset_id) DO UPDATE SET model = EXCLUDED.model, model_version = EXCLUDED.model_version, embedding = EXCLUDED.embedding, created_at = now()`,
-        [job.asset_id, process.env.CLIP_MODEL ?? 'Xenova/clip-vit-base-patch32', pgVector(embedding)])
+        await pool.query(
+          `INSERT INTO embeddings (asset_id, model, model_version, embedding)
+           VALUES ($1, $2, '1', $3::vector)
+           ON CONFLICT (asset_id) DO UPDATE
+             SET model = EXCLUDED.model, model_version = EXCLUDED.model_version,
+                 embedding = EXCLUDED.embedding, created_at = now()`,
+          [job.asset_id, process.env.CLIP_MODEL ?? 'Xenova/clip-vit-base-patch32', pgVector(embedding)],
+        )
+        // Face detection placeholder — integrate a detector (e.g. @vladmandic/face-api)
+        // here to populate the `faces` table with bounding boxes and embeddings.
+        // The PeopleView admin UI already supports assigning undetected faces to persons.
       }
       await pool.query("UPDATE assets SET status = 'ready' WHERE id = $1", [job.asset_id])
     }

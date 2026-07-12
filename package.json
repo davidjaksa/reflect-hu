@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "worker": "node scripts/worker.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "setup:admin": "node scripts/setup-admin.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
