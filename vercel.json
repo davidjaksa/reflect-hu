@@ -1,0 +1,41 @@
+{
+  "projectSettings": {
+    "framework": "nextjs"
+  },
+  "buildCommand": "pnpm run build",
+  "devCommand": "pnpm run dev",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "env": [
+    {
+      "key": "DATABASE_URL",
+      "description": "PostgreSQL connection string (Neon recommended)",
+      "value": "@neon_database_url"
+    },
+    {
+      "key": "BLOB_READ_WRITE_TOKEN",
+      "description": "Vercel Blob storage token",
+      "value": "@blob_token"
+    },
+    {
+      "key": "SESSION_SECRET",
+      "description": "Admin session signing secret (generate with: openssl rand -base64 32)",
+      "value": "@session_secret"
+    },
+    {
+      "key": "SHARE_SESSION_SECRET",
+      "description": "Share link session signing secret (generate with: openssl rand -base64 32)",
+      "value": "@share_session_secret"
+    },
+    {
+      "key": "ADMIN_API_KEY",
+      "description": "API key for Lightroom plugin (generate with: openssl rand -base64 32)",
+      "value": "@admin_api_key"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/process-jobs",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
