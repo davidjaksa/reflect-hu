@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { ArrowUpRight, Camera } from 'lucide-react'
 
 import { query } from '@/lib/db'
-import { Button } from '@/components/ui/button'
 
 export const revalidate = 60
 
@@ -54,9 +53,12 @@ export default async function PortfolioPage() {
           </span>
           <span className="font-serif text-xl">Lumen Studio</span>
         </Link>
-        <Button asChild variant="ghost">
-          <a href="mailto:hello@example.com">Kapcsolat <ArrowUpRight data-icon="inline-end" /></a>
-        </Button>
+        <a
+          href="mailto:hello@example.com"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition hover:bg-muted"
+        >
+          Kapcsolat <ArrowUpRight className="size-4" />
+        </a>
       </header>
 
       <section className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-16 md:px-10 md:py-24">
@@ -96,11 +98,12 @@ export default async function PortfolioPage() {
                   <p className="max-w-md leading-relaxed text-muted-foreground">{story.description}</p>
                 )}
                 {story.slug !== '#' && (
-                  <Button variant="outline" className="w-fit" asChild>
-                    <Link href={`/portfolio/${story.slug}`}>
-                      Sorozat megtekintése <ArrowUpRight data-icon="inline-end" />
-                    </Link>
-                  </Button>
+                  <Link
+                    href={`/portfolio/${story.slug}`}
+                    className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm font-medium transition hover:bg-muted"
+                  >
+                    Sorozat megtekintése <ArrowUpRight className="size-4" />
+                  </Link>
                 )}
               </div>
             </article>

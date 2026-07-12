@@ -70,9 +70,4 @@ export async function destroySession(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE)
 }
 
-/** Lightweight token presence check for Next.js middleware (no DB call). */
-export function getSessionTokenFromCookie(cookieHeader: string | null): string | null {
-  if (!cookieHeader) return null
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=([^;]+)`))
-  return match?.[1] ?? null
-}
+// getSessionTokenFromCookie lives in lib/auth-edge.ts (no Node.js imports, edge-safe)

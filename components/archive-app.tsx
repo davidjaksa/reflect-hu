@@ -55,7 +55,9 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SharesPanel } from '@/components/shares-panel'
+import { PeopleView } from '@/components/people-view'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -157,6 +159,7 @@ const navItems = [
   { label: 'Archívum', icon: Archive },
   { label: 'Projektek', icon: FolderKanban },
   { label: 'Ügyfelek', icon: Users },
+  { label: 'Személyek', icon: CircleUserRound },
   { label: 'Portfólió', icon: GalleryHorizontalEnd },
 ]
 
@@ -280,6 +283,7 @@ export function ArchiveApp() {
           )}
           {active === 'Projektek' && <AlbumsView searchQuery={searchQuery} />}
           {active === 'Ügyfelek' && <ClientsView />}
+          {active === 'Személyek' && <PeopleView />}
           {active === 'Portfólió' && <PortfolioView />}
           {active === 'Lightroom' && <LightroomView />}
           {active === 'Beállítások' && <SettingsView />}
@@ -611,32 +615,51 @@ function AlbumsView({ searchQuery }: { searchQuery: string }) {
       <Tabs defaultValue="grid">
         <TabsList>
           <TabsTrigger value="grid"><Grid2X2 />Rács</TabsTrigger>
-          <TabsTrigger value="clients"><CircleUserRound />Hozzáférések</TabsTrigger>
           <TabsTrigger value="shares"><Link2 />Megosztások</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="grid" className="mt-6 flex flex-col gap-6">
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}><CardContent className="pt-6"><Skeleton className="aspect-video w-full rounded-lg" /></CardContent></Card>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <Card>
+              <CardContent className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
+                <FolderKanban className="size-8 text-muted-foreground" />
+                <p className="font-medium">Nincs album</p>
+                <Button onClick={() => setOpen(true)}><Plus data-icon="inline-start" />Első album létrehozása</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((album) => <AlbumCard key={album.id} album={album} />)}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="shares" className="mt-6 flex flex-col gap-6">
+          {!data?.albums.length ? (
+            <Card>
+              <CardContent className="flex min-h-40 flex-col items-center justify-center gap-2 text-center">
+                <Link2 className="size-6 text-muted-foreground" />
+                <p className="font-medium">Hozz letre elobb albumot a megosztas kezelesehez.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-8">
+              {data.albums.map((album) => (
+                <div key={album.id} className="flex flex-col gap-3">
+                  <h3 className="font-serif text-xl">{album.title}</h3>
+                  <SharesPanel albumId={album.id} />
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
-
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}><CardContent className="pt-6"><Skeleton className="aspect-video w-full rounded-lg" /></CardContent></Card>
-          ))}
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((album) => <AlbumCard key={album.id} album={album} />)}
-        </div>
-      )}
-
-      {!isLoading && filtered.length === 0 && (
-        <Card>
-          <CardContent className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
-            <FolderKanban className="size-8 text-muted-foreground" />
-            <p className="font-medium">Nincs album</p>
-            <Button onClick={() => setOpen(true)}><Plus data-icon="inline-start" />Első album létrehozása</Button>
-          </CardContent>
-        </Card>
-      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -666,7 +689,7 @@ function AlbumsView({ searchQuery }: { searchQuery: string }) {
             </div>
             <div className="flex flex-col gap-2">
               <Label>Láthatóság</Label>
-              <Select value={form.visibility} onValueChange={(v) => setForm((f) => ({ ...f, visibility: v }))}>
+              <Select value={form.visibility} onValueChange={(v) => setForm((f) => ({ ...f, visibility: v ?? f.visibility }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="private">Privát</SelectItem>
@@ -677,7 +700,7 @@ function AlbumsView({ searchQuery }: { searchQuery: string }) {
             </div>
             <div className="flex flex-col gap-2">
               <Label>Ügyfél (opcionális)</Label>
-              <Select value={form.clientId} onValueChange={(v) => setForm((f) => ({ ...f, clientId: v }))}>
+              <Select value={form.clientId} onValueChange={(v) => setForm((f) => ({ ...f, clientId: v ?? '' }))}>
                 <SelectTrigger><SelectValue placeholder="Válassz ügyfelet…" /></SelectTrigger>
                 <SelectContent>
                   {clientData?.clients.map((c) => (
@@ -815,20 +838,167 @@ function ClientsView() {
 // ---------------------------------------------------------------------------
 
 function PortfolioView() {
+  const { data, isLoading, mutate } = useSWR<{ collections: Array<{
+    id: string; slug: string; title: string; description: string | null
+    published: boolean; sort_order: number; item_count: number; created_at: string
+  }> }>('/api/portfolio', fetcher)
+
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ title: '', slug: '', description: '', published: false })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function createCollection() {
+    setSaving(true); setError('')
+    try {
+      const res = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error(d.error ?? 'Hiba.')
+      }
+      await mutate()
+      setOpen(false)
+      setForm({ title: '', slug: '', description: '', published: false })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Hiba.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function togglePublished(slug: string, current: boolean) {
+    await fetch(`/api/portfolio/${slug}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ published: !current }),
+    })
+    await mutate()
+  }
+
   return (
     <>
-      <section>
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Lumen studio</p>
-        <h1 className="mt-2 font-serif text-4xl md:text-5xl">Portfólió</h1>
-        <p className="mt-2 text-muted-foreground">Nyilvános portfóliókollekciók kezelése.</p>
+      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Lumen studio</p>
+          <h1 className="mt-2 font-serif text-4xl md:text-5xl">Portfólió</h1>
+          <p className="mt-2 text-muted-foreground">Nyilvános portfóliókollekciók kezelése.</p>
+        </div>
+        <div className="flex gap-2">
+          <a
+            href="/portfolio"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm font-medium transition hover:bg-muted"
+          >
+            <ArrowUpRight className="size-4" />Nyilvános nézet
+          </a>
+          <Button onClick={() => setOpen(true)}>
+            <Plus data-icon="inline-start" />Új kollekció
+          </Button>
+        </div>
       </section>
-      <Card>
-        <CardContent className="flex min-h-40 flex-col items-center justify-center gap-2 text-center">
-          <GalleryHorizontalEnd className="size-8 text-muted-foreground" />
-          <p className="font-medium">Portfólió CMS — hamarosan</p>
-          <p className="text-sm text-muted-foreground">Kollekciók létrehozása és albumokból elemek hozzáadása (F4 fázis).</p>
-        </CardContent>
-      </Card>
+
+      {isLoading ? (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+        </div>
+      ) : !data?.collections.length ? (
+        <Card>
+          <CardContent className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
+            <GalleryHorizontalEnd className="size-8 text-muted-foreground" />
+            <p className="font-medium">Nincs portfóliókollekció</p>
+            <Button onClick={() => setOpen(true)}><Plus data-icon="inline-start" />Elso kollekció</Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {data.collections.map((col) => (
+            <Card key={col.id}>
+              <CardContent className="flex items-center justify-between gap-4 py-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-secondary">
+                    <GalleryHorizontalEnd className="size-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{col.title}</p>
+                    <p className="text-sm text-muted-foreground">/{col.slug} · {col.item_count} elem</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant={col.published ? 'default' : 'secondary'}>
+                    {col.published ? 'Közzétéve' : 'Vázlat'}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => togglePublished(col.slug, col.published)}
+                  >
+                    {col.published ? 'Elrejtés' : 'Közzététel'}
+                  </Button>
+                  <a
+                    href={`/portfolio/${col.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${col.title} szerkesztése`}
+                    className="inline-flex size-8 items-center justify-center rounded-lg transition hover:bg-muted"
+                  >
+                    <ArrowUpRight className="size-4" />
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Új kollekció</DialogTitle>
+            <DialogDescription>Portfóliókollekció létrehozása a nyilvános oldalhoz.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="col-title">Cím</Label>
+              <Input
+                id="col-title"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value, slug: slugify(e.target.value) }))}
+                placeholder="Esküvői fotózások"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="col-slug">URL slug</Label>
+              <Input
+                id="col-slug"
+                value={form.slug}
+                onChange={(e) => setForm((f) => ({ ...f, slug: slugify(e.target.value) }))}
+                placeholder="eskuvoi-fotozasok"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="col-desc">Leírás (opcionális)</Label>
+              <Input
+                id="col-desc"
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Rövid bemutató…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Mégse</Button>
+            <Button onClick={createCollection} disabled={!form.title || !form.slug || saving}>
+              {saving ? 'Mentés…' : 'Létrehozás'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
@@ -856,11 +1026,12 @@ function LightroomView() {
             <MiniStep index="02" title="API kulcs beállítása" desc="Pluginbeállításokban add meg a szervered URL-jét és az ADMIN_API_KEY értékét." />
             <MiniStep index="03" title="Album publikálása" desc="A Publish Service-ben válassz albumot és kattints a Publish gombra." />
           </div>
-          <Button className="self-start" asChild>
-            <a href="/integrations/lightroom/Lumen.lrplugin" download>
-              <Download data-icon="inline-start" />Plugin csomag letöltése
-            </a>
-          </Button>
+          <a
+            href="/api/plugin/download"
+            className="inline-flex self-start items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/80"
+          >
+            <Download className="size-4" />Plugin csomag letöltése (.tar)
+          </a>
         </CardContent>
       </Card>
     </>

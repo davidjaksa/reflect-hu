@@ -5,7 +5,6 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Camera } from 'lucide-react'
 
 import { query } from '@/lib/db'
-import { Button } from '@/components/ui/button'
 
 export const revalidate = 60
 
@@ -83,12 +82,12 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
           </span>
           <span className="font-serif text-xl">Lumen Studio</span>
         </Link>
-        <Button asChild variant="ghost">
-          <Link href="/portfolio">
-            <ArrowLeft data-icon="inline-start" />
-            Vissza
-          </Link>
-        </Button>
+        <Link
+          href="/portfolio"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition hover:bg-muted"
+        >
+          <ArrowLeft className="size-4" />Vissza
+        </Link>
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-16 md:px-10 md:py-24">

@@ -196,11 +196,13 @@ function ZipDownloadButton({ token }: { token: string }) {
 
   if (status === 'ready') {
     return (
-      <Button asChild>
-        <a href={downloadUrl} download>
-          <Download data-icon="inline-start" />ZIP letöltése
-        </a>
-      </Button>
+      <a
+        href={downloadUrl}
+        download
+        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/80"
+      >
+        <Download className="size-4" />ZIP letöltése
+      </a>
     )
   }
 

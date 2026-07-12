@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
-import { getSessionTokenFromCookie } from '@/lib/auth'
+import { getSessionTokenFromCookie } from '@/lib/auth-edge'
 
 /** Public paths that never require authentication */
 const PUBLIC_PREFIXES = [
