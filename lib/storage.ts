@@ -2,7 +2,6 @@ import { createReadStream } from 'node:fs'
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import path from 'node:path'
 import SftpClient from 'ssh2-sftp-client'
-import { put, get } from '@vercel/blob'
 
 export interface StorageAdapter {
   putFile(localPath: string, storageKey: string): Promise<void>
@@ -68,27 +67,8 @@ class MountedStorage implements StorageAdapter {
   }
 }
 
-class VercelBlobStorage implements StorageAdapter {
-  async getBuffer(storageKey: string) {
-    const result = await get(safeKey(storageKey), {
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-      access: 'private',
-    })
-    if (!result.blob) throw new Error(`Blob not found: ${storageKey}`)
-    return Buffer.from(await result.blob.arrayBuffer())
-  }
-
-  async putFile(localPath: string, storageKey: string) {
-    const fileContent = await readFile(localPath)
-    await put(safeKey(storageKey), fileContent, {
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-      access: 'private',
-    })
-  }
-}
-
 export function getStorage(): StorageAdapter {
-  if (process.env.STORAGE_DRIVER === 'blob') return new VercelBlobStorage()
   if (process.env.STORAGE_DRIVER === 'mount') return new MountedStorage()
+  // Default to SFTP (Hetzner Storage Box)
   return new SftpStorage()
 }
