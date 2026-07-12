@@ -7,9 +7,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Turbopack requires native @next/swc bindings which aren't available in
-  // all Docker environments (e.g., node:22-slim). Use webpack instead.
-  webpack: (config, { dev }) => config,
+  // Turbopack is enabled by default in Next.js 16. Allow WASM fallback when
+  // native @next/swc bindings are unavailable (e.g., node:22-slim Docker images).
+  turbopack: {},
 }
 
 export default nextConfig
